@@ -143,7 +143,7 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  return ~(~x & ~y) & ~(x & y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,9 +152,7 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
-
+  return 1 << 31;
 }
 //2
 /*
@@ -165,7 +163,12 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+    int x_plus1 = x + 1;
+    // 检查 x + 1 是否等于 ~x
+    int check = (x_plus1 ^ ~x);
+    // 排除 x 为 -1 的情况
+    int not_minus_one = !!x_plus1;
+    return !(check) & not_minus_one;
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +179,10 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+    int mask = 0xAA;    // 构造掩码0xAA
+    mask = mask + (mask << 8);// 0xAAAA
+    mask = mask + (mask << 16);// 0xAAAAAAAA
+    return !((x & mask) ^ mask);
 }
 /* 
  * negate - return -x 
@@ -186,7 +192,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return ~x + 1;
 }
 //3
 /* 
@@ -199,7 +205,19 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+   // x - 0x30
+    int lower_diff = x + (~0x30 + 1); 
+    //  x - 0x30 的符号位
+    int lower_sign = (lower_diff >> 31) & 1;
+    
+    // 0x39 - x
+    int upper_diff = 0x39 + (~x + 1); 
+    //  0x39 - x 的符号位
+    int upper_sign = (upper_diff >> 31) & 1;
+
+    int lower_ok = ~lower_sign & 1;
+    int upper_ok = ~upper_sign & 1;
+    return lower_ok & upper_ok;
 }
 /* 
  * conditional - same as x ? y : z 
@@ -209,7 +227,10 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+    // 生成掩码：如果x非零，mask为0xFFFFFFFF；否则为0
+    int mask = (~ (!!x)) + 1;
+    // 根据mask选择返回y或z
+    return (mask & y) | ((~mask) & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -219,7 +240,7 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  
 }
 //4
 /* 
@@ -231,7 +252,7 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -246,7 +267,7 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  
 }
 //float
 /* 
@@ -261,7 +282,7 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -276,7 +297,7 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -292,5 +313,5 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+    
 }
