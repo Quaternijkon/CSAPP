@@ -240,8 +240,30 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  
+    // 提取符号位
+    int sign_x = (x >> 31) & 1;
+    int sign_y = (y >> 31) & 1;
+    
+    // 判断符号是否不同
+    int sign_diff = sign_x ^ sign_y;
+    
+    // 计算 y - x
+    int y_minus_x = y + (~x + 1);
+    int sign_y_minus_x = (y_minus_x >> 31) & 1;
+    
+    // 如果符号不同且x为负，则x < y
+    int less_when_sign_diff = sign_diff & sign_x;
+    
+    // 如果符号相同且 y - x >= 0，则x <= y
+    int less_when_sign_same = (!sign_diff) & (!sign_y_minus_x);
+    
+    // x <= y 的情况包括 x < y 或 x == y
+    int is_less_or_equal = less_when_sign_diff | less_when_sign_same;
+    
+    // 返回结果，确保为0或1
+    return is_less_or_equal;
 }
+
 //4
 /* 
  * logicalNeg - implement the ! operator, using all of 
@@ -252,7 +274,17 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  
+    // 计算 ~x + 1，即 -x
+    int neg_x = ~x + 1;
+    
+    // 将 x 和 -x 进行按位或操作
+    int or_result = x | neg_x;
+    
+    // 右移31位，提取最高位
+    int sign = or_result >> 31;
+    
+    // 对最高位取反并加1，得到逻辑非的结果
+    return (sign + 1) & 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -267,7 +299,39 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  
+    int sign, bits, tmp;
+    
+    // 1. 统一处理符号：如果x为负，取反
+    sign = (x >> 31) & 1;
+    x = (sign) ? ~x : x;
+    
+    bits = 1; // 至少需要1位来表示
+    
+    // 2. 检查16位
+    tmp = x >> 16;
+    bits += (!!tmp) << 4; // 如果高16位有1，加16位
+    x = tmp | (x >> 16); // 如果高16位有1，x右移16位后继续检查
+    
+    // 3. 检查8位
+    tmp = x >> 8;
+    bits += (!!tmp) << 3; // 如果高8位有1，加8位
+    x = tmp | (x >> 8);
+    
+    // 4. 检查4位
+    tmp = x >> 4;
+    bits += (!!tmp) << 2; // 如果高4位有1，加4位
+    x = tmp | (x >> 4);
+    
+    // 5. 检查2位
+    tmp = x >> 2;
+    bits += (!!tmp) << 1; // 如果高2位有1，加2位
+    x = tmp | (x >> 2);
+    
+    // 6. 检查1位
+    tmp = x >> 1;
+    bits += !!tmp; // 如果高1位有1，加1位
+    
+    return bits;
 }
 //float
 /* 
@@ -282,8 +346,38 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  
+    unsigned sign = uf & 0x80000000;        // 提取符号位
+    unsigned exp = (uf & 0x7F800000) >> 23; // 提取阶码
+    unsigned frac = uf & 0x007FFFFF;        // 提取尾数
+
+    // 判断是否为 NaN 或 Infinity
+    if (exp == 0xFF) {
+        // NaN 或 Infinity，直接返回原值
+        return uf;
+    }
+
+    if (exp == 0) {
+        // 非规格化数，乘以2相当于左移1位
+        frac <<= 1;
+        // 检查是否溢出为规格化数
+        if (frac & 0x00800000) {
+            exp = 1;          // 转换为规格化数，阶码设为1
+            frac &= 0x007FFFFF; // 去掉最高位
+        }
+        // 重新组合
+        return sign | (exp << 23) | frac;
+    } else {
+        // 规格化数，阶码增加1
+        exp += 1;
+        if (exp == 0xFF) {
+            // 阶码溢出为 Infinity
+            frac = 0;
+        }
+        // 重新组合
+        return sign | (exp << 23) | frac;
+    }
 }
+
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
  *   for floating point argument f.
@@ -297,8 +391,54 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  
+    // 提取符号位（0或1）
+    int sign = uf >> 31;
+    
+    // 提取阶码（8位）
+    int exp = (uf >> 23) & 0xFF;
+    
+    // 提取尾数（23位）
+    int frac = uf & 0x7FFFFF;
+    
+    // 实际指数 E = exp - 127
+    int E = exp - 127;
+    
+    // 处理特殊情况：NaN 或 Infinity
+    if (exp == 255) {
+        return 0x80000000u;
+    }
+    
+    // 处理小于1的情况（E < 0）
+    if (E < 0) {
+        return 0;
+    }
+    
+    // 处理溢出情况（E > 30）
+    if (E > 30) {
+        return 0x80000000u;
+    }
+    
+    // 规格化数：添加隐含的1
+    int mantissa = frac | 0x800000;
+    
+    int result;
+    
+    if (E > 23) {
+        // E > 23，左移 (E - 23) 位
+        result = mantissa << (E - 23);
+    } else {
+        // E <= 23，右移 (23 - E) 位
+        result = mantissa >> (23 - E);
+    }
+    
+    // 应用符号位
+    if (sign) {
+        result = -result;
+    }
+    
+    return result;
 }
+
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
  *   (2.0 raised to the power x) for any 32-bit integer x.
@@ -313,5 +453,24 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
+    // 计算阶码 E = x + 127
+    int E = x + 127;
     
+    // 判断溢出：E >= 255
+    if (E >= 255) {
+        // 返回正无穷大：阶码全1，尾数全0
+        return 0x7F800000;
+    }
+    
+    // 判断下溢：E <= 0
+    if (E <= 0) {
+        // 无法表示为规格化数，返回0
+        return 0;
+    }
+    
+    // 构造浮点数表示：符号位0，阶码E，尾数0
+    unsigned result = (E << 23);
+    
+    return result;
 }
+
